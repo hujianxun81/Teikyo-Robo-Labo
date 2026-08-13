@@ -57,46 +57,81 @@ CAD for every item below lives in `vendor-models/`. The **Mounted on** column sa
 
 ## 2. Printing
 
-### 2.1 Default settings
+### 2.1 Profiles
 
-| | Value |
-|---|---|
-| Material | Inslogic PETG Pro (verification) → Inslogic PA12-CF (final) |
-| Walls | 3 → 2 |
-| Top / bottom solid layers | 6 → 4 each |
-| Infill | 15–20 %, gyroid |
+|                           | PETG (verification)                        | PA12-CF (final)                      |
+| ------------------------- | ------------------------------------------ | ------------------------------------ |
+| Filament                  | Inslogic PETG Pro                          | Inslogic PA12-CF                     |
+| Nozzle diameter           | 0.4 mm, Tungsten Carbide Nozzle, High Flow | **0.6 mm, hardened steel, Standard** |
+| Layer height              | 0.2 mm                                     | 0.3 mm                               |
+| Walls                     | 3                                          | **2**                                |
+| Top / bottom solid layers | 6 / 6                                      | **4 / 4**                            |
+| Infill                    | 15–20 % gyroid                             | 15–20 % gyroid                       |
+| Nozzle temp               | 240 °C                                     | **270 °C** (first layer 275 °C)      |
+| Bed temp                  | 65 °C (Texture PEI Plate)                  | **90 °C** (Engineering Plate)        |
+| Chamber                   | —                                          | **50 °C, exhaust fan OFF**           |
+| Max volumetric speed      | default                                    | **8 mm³/s** (≈ 43 mm/s effective)    |
 
-Do not raise infill above ~20 % on flat plates. Stiffness in bending comes from the top and bottom skins — add solid layers instead, it is lighter and stiffer.
+Wall counts differ because the nozzle does: 3 × 0.42 mm ≈ 2 × 0.62 mm ≈ 1.25 mm of wall either way; Same for the solid layers: 6 × 0.2 = 4 × 0.3 = 1.2 mm of skin.
 
-PA12-CF must be dried before printing.
+Do not raise infill above ~20 % on flat plates. Bending stiffness comes from the top and bottom skins; at 4 mm thickness the core contributes under 0.5 %. Add solid layers instead — lighter and stiffer per gram.
 
-### 2.2 Per-part orientation
+PA12-CF is roughly twice the flexural modulus of PETG at 83 % the density, so a plate can be about 20 % thinner for the same stiffness (4.0 mm PETG ≈ 3.2 mm PA12-CF, and 34 % lighter).
 
-| Part | Orientation on bed | Notes |
-|---|---|---|
-| `rear-axle-carrier-left/right.step` | Wall-plate face down | Bearing bore axis vertical → round bore |
-| `steering-knuckle-left/right.step` | Bearing bore axis vertical | Matches the fit gauge |
-| `steering-deck-lower/upper.step` | Donut lying flat | Relief slot must flex in-plane |
+### 2.2 PA12-CF setup
 
-Parts with thin walls around a press fit (e.g. the MR117 seat) should get 3–4 walls locally instead of 2.
+Getting this material to stick took several attempts. All of the following matter:
 
-### 2.3 Bearing bores
+| Step             | Detail                                                       |
+| ---------------- | ------------------------------------------------------------ |
+| Dry the filament | 85 °C for 12 h **before** printing, then keep it in the dryer and feed through PTFE. Drying while printing does not remove water, it only maintains. |
+| Wash the plate   | Use Isopropyl alcohol to remove finger oil from the textured surface. |
+| Glue             | Preheat plate to 60 °C, apply Magigoo PA thinly, let it dry to a film. |
+| Bed temperature  | **90 °C** on the Engineering Plate. The 60–70 °C in the TDS assumes a Textured PEI Plate; the Engineering Plate is designed for a higher range and adheres poorly at 65 °C. |
+| Chamber          | 50 °C, and make sure the chamber exhaust fan is off or it defeats the heater. |
+| Brim             | 8 mm outer brim, **gap 0**. A gap means the brim is not anchoring anything. 5 mm is enough for small parts. |
 
-Calibrated with `cad/test-coupons/bearing-fit-gauge.step` on this printer.
-Re-run the gauge if the printer, nozzle, or filament changes.
+Other slicer settings that were needed:
 
-| Bearing | Nominal OD | Bore in model | Lead-in chamfer |
-|---|---|---|---|
-| MR117ZZ | 11.00 mm | **⌀11.10** | 0.4–0.5 mm × 45° |
-| MR74ZZ | 7.00 mm | **⌀7.10** | 0.4–0.5 mm × 45° |
+| Setting                             | Value                                                      | Why                                                          |
+| ----------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
+| Part cooling fan                    | 0 % on normal layers                                       | Cooling is what causes warping in nylon                      |
+| Overhang / bridge fan               | 40 %                                                       | Needed so top skins don't sag into the infill                |
+| Cooling overhang threshold          | 50 %                                                       | At 0 % it flags ordinary outer walls as overhangs and blows on them |
+| First layer speed                   | 20 mm/s (infill 30 mm/s)                                   | Only speed that isn't capped by the volumetric limit, and it drives adhesion |
+| Acceleration                        | normal 3000, outer wall 2000, travel 5000, first layer 500 | High acceleration knocks marginally-attached parts loose     |
+| First layer line width              | 0.68 mm                                                    | More contact area with the plate                             |
+| Elephant foot compensation          | 0                                                          | It shrinks the first layer, which is the opposite of what we want |
+| **Auto circular hole compensation** | **OFF**                                                    | Would silently resize every bore and invalidate the calibration below |
+| **X-Y size compensation**           | **0**                                                      | Same reason                                                  |
+| Seam position                       | Random on structural parts                                 | Aligned seams stack into a vertical weak line                |
 
-Without the chamfer the bearing has to be hammered in. Shoulders stay square — no fillet, or the bearing will not seat flat.
+The purge line at the front of the plate is disabled — the `G130 ... L40 E12 D4` line in the machine start G-code is commented out. It was being dragged into the part. Safe to disable because every part is printed with a brim, so any under-extrusion at the start lands on the brim. Re-check this after a Bambu Studio update.
 
-### 2.4 Rod ends
+### 2.3 Per-part orientation
 
-Ball ⌀4.8 mm, stud ⌀2.7 mm. Socket clearance calibrated with `cad/test-coupons/rod-end-fit-gauge.step`.
+| Part                           | Orientation                | Notes                                                        |
+| ------------------------------ | -------------------------- | ------------------------------------------------------------ |
+| `rear-axle-carrier-left/right` | Wall-plate face down       | Bearing bore axis vertical → round bore. 3 walls locally: the MR117 seat wall is only ~1.3 mm |
+| `steering-knuckle-left/right`  | Bearing bore axis vertical | Matches the fit gauge orientation                            |
+| `steering-deck-lower/upper`    | Flat                       | Integral ball sockets at both ends                           |
 
-| Socket bore | Fit | Use |
-|---|---|---|
-| ⌀5.0 | Press fit, smooth rotation | Default |
-| ⌀5.1 | Easier fit, still retains | Positions removed often |
+### 2.4 Fit calibration
+
+**Re-run the gauges whenever the material *or* the nozzle diameter changes.** The offset
+below is not material shrinkage — it is nearly constant across bore sizes, which means it
+comes mostly from extrusion width.
+
+| Feature                 | Nominal | PETG @0.4 | PA12-CF @0.6 |
+| ----------------------- | ------- | --------- | ------------ |
+| MR117ZZ seat            | ⌀11.00  | 11.10     | **11.40**    |
+| MR74ZZ seat             | ⌀7.00   | 7.10      | **7.40**     |
+| Ball socket (ball ⌀4.8) | —       | 5.00      | **5.45**     |
+
+Gauges: `cad/test-coupons/bearing-fit-gauge-*.step`, `rod-end-fit-gauge-*.step`
+
+Notes:
+
+- Every bearing seat gets a **0.4–0.5 mm × 45° lead-in chamfer**. Without it the bearing has to be driven in with a hammer.
+- Bearing shoulders stay square. No fillet, or the bearing will not seat flat.
+- **Spherical cavities need about 0.15 mm more compensation than a cylindrical bore of the same size** (0.45 vs 0.30 here). The upper hemisphere is an unsupported dome that droops inward as it prints. Apply this to any ball socket, not just rod ends.
